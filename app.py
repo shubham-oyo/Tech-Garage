@@ -65,6 +65,22 @@ def parseCsv():
 	return "Success"
 
 
+
+@app.route("/test")
+def test():
+	ntime = "2018-01-14 17:54:13"
+	fmt = '%Y-%m-%d %H:%M:%S'
+	today = date.today()
+	now = datetime.now()
+	print(now)
+	print(datetime.strptime(ntime, fmt))
+
+	ts1 = now - datetime.strptime(ntime, fmt)
+	# ts1 = datetime.strptime(now, fmt) - datetime.strptime(ntime, fmt)
+	print(ts1)
+	return "das"
+
+
 @app.route("/report")
 def generateReports():
 	fmt = '%Y-%m-%d %H:%M:%S'
@@ -73,20 +89,22 @@ def generateReports():
 	PRIORITY = ["Urgent", "High", "Medium"]
 	STATUS = ["Open", "Resolved", "Closed", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
 
+	print (CallCentre.query.filter(CallCentre.status=="Resolved").count())
+
 	# Total tickets
-	totalTickets = CallCenter.query.filter(((now - datetime.strptime(CallCenter.createdAt, fmt)).minutes <= 60), CallCenter.Group == "SIG IB").count()
+	totalTickets = CallCentre.query.filter(((nowTime - datetime.strptime(CallCentre.createdAt, fmt)).minutes <= 60), CallCentre.group == "SIG IB").count()
 	# Tickets resolved
-	resolvedTickets = CallCenter.query.filter(((now - datetime.strptime(CallCenter.resolvedAt, fmt)).minutes <= 60), CallCenter.Status == "Resolved", CallCenter.Group == "SIG IB").count()
+	resolvedTickets = CallCentre.query.filter(CallCentre.resolved != "", ((nowTime - datetime.strptime(CallCentre.resolvedAt, fmt)).minutes <= 60), CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
 	# Tickets resolved under 1 hour
-	resolvedWithinOneHour = CallCenter.query.filter
+	resolvedWithinOneHour = CallCentre.query.filter
 	# Total tickets created by captain
-	resolvedTickets = CallCenter.query.filter(((datetime.strptime(CallCenter.createdAt, fmt) - now).minutes <= 60), CallCenter.Agent != "No Agent", CallCenter.Group == "SIG IB").count()
+	resolvedTickets = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
 	# Status vs priority
 	i = 1
 	for pr in PRIORITY:
 		for st in STATUS:
-			tickets[i] = CallCenter.query.filter(((datetime.strptime(CallCenter.createdAt, fmt) - now).minutes <= 60), CallCenter.Priority == pr, CallCenter.Status == st)
-			# tickets[pr + st] = CallCenter.query.filter(((datetime.strptime(CallCenter.createdAt, fmt) - now).minutes <= 60), CallCenter.Priority == pr, CallCenter.Status == st)
+			tickets[i] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.priority == pr, CallCentre.status == st)
+			# tickets[pr + st] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.Priority == pr, CallCentre.Status == st)
 			i += 1
 	i = 1
 	tableRows = list()
@@ -131,6 +149,6 @@ def run():
 	csvData = requests.get(csvURL)
 	with open("data.csv", "w") as csvFile:
 		csvFile.write(csvData.content)
-	#test()
+	test()
 	parseCsv()
 	return "Success"
