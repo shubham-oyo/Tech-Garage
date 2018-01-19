@@ -1,0 +1,28 @@
+{
+	"config" : [
+		{
+			"freshdeskGroup": "ops-team",
+			"groups": [{
+					"fields": ["", ""],
+					"whatsappGroupName": ""
+				},
+				{
+					"fields": [],
+					"whatsappGroupName": ""
+				}
+			]
+		},
+		{
+			"freshdeskGroup": "android-team",
+			"groups": [{
+					"fields": ["", ""],
+					"whatsappGroupName": ""
+				},
+				{
+					"fields": [],
+					"whatsappGroupName": ""
+				}
+			]
+		}
+	]
+}
