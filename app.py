@@ -10,15 +10,16 @@ import pandas as pd
 
 
 app = Flask(__name__)
-# db = SQLAlchemy(app)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/callcentre'
 app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
+column_list = ['Ticket Id', 'Status', 'Priority', 'Source', 'Agent', 'Group', 'Created Time', 'Resolved Time']
+primary_key = 'Ticket Id'
 plotly.tools.set_credentials_file(username='gaurav54', api_key='Ec1QpRXJ8WJygkYwkl2U')
 py.sign_in('gaurav54', 'Ec1QpRXJ8WJygkYwkl2U') # Replace the username, and API key with your credentials.
-
-COLUMNS = ['Ticket Id', 'Status', 'Priority', 'Source', 'Agent', 'Group', 'Created Time', 'Resolved Time']
 
 class CallCentre(db.Model):
 	__tablename__ = 'callcentre'
@@ -29,9 +30,8 @@ class CallCentre(db.Model):
 	source = db.Column(db.String())
 	agent = db.Column(db.String())
 	group = db.Column(db.String())
-	createdAt =  db.Column(db.DateTime)
-	resolvedAt = db.Column(db.DateTime)
-
+	createdAt =  db.Column(db.String(), nullable=True)
+	resolvedAt = db.Column(db.String(), nullable=True)
 
 	def __init__(self, id, status, priority, source, agent, group, createdAt, resolvedAt):
 		self.id = id
@@ -46,16 +46,22 @@ class CallCentre(db.Model):
 	def __repr__(self):
 		return "ticketId: %r | status: %r | priority: %r | source: %r | agent: %r | group: %r | created_time: %r | resolved_time: %r" %(str(self.ticketId), self.status, self.priority, self.source, self.agent, self.group, self.createdAt, self.resolvedAt)
 
-# db.create_all()
-# admin = CallCentre(1, "Resolved", "Medium", "Portal", "abc", "SIG IB", "2018-01-19 17:54:13", "2018-01-19 18:00:36")
-# db.session.add(admin)
-# db.session.commit()
-
 def parseCsv():
-	with open("data.csv", "rb") as csvFile:
-		csvReader = csv.reader(csvFile, delimiter=',')
-		# for row in csvReader:
-		# 	print (row)
+	df = pd.read_csv("data.csv")
+	columns_data = {}
+	for columns in column_list:
+		columns_data[columns] = df[columns].fillna('')
+	for i in columns_data[primary_key]:
+		obj = CallCentre.query.get(i)
+		if obj:
+			db.session.delete(obj)
+	for i in xrange(0, len(columns_data[primary_key])):
+		l = []
+		for column in column_list:
+			l.append(columns_data[column][i])
+		obj = CallCentre(l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7])
+		db.session.add(obj)
+	db.session.commit()
 	return "Success"
 
 
@@ -112,6 +118,11 @@ def sendMessage():
 	requests.post("postman-prod-env-1.ap-southeast-1.elasticbeanstalk.com/whatsapp/internal/send", data=payload)
 	return "Success"
 
+def test():
+	db.create_all()
+	admin = CallCentre(1, "Resolved", "Medium", "Portal", "abc", "SIG IB", "2018-01-19 17:54:13", "2018-01-19 18:00:36")
+	db.session.add(admin)
+	db.session.commit()
 
 @app.route("/run")
 def run():
@@ -120,5 +131,6 @@ def run():
 	csvData = requests.get(csvURL)
 	with open("data.csv", "w") as csvFile:
 		csvFile.write(csvData.content)
-	# parseCsv()
+	#test()
+	parseCsv()
 	return "Success"
