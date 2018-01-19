@@ -12,13 +12,13 @@ app = Flask(__name__)
 def parseCsv():
 	with open("data.csv", "rb") as csvFile:
 		csvReader = csv.reader(csvFile, delimiter=',')
-		for row in csvReader:
-			print (row)
+		# for row in csvReader:
+		# 	print (row)
 	return "Success"
 
 @app.route("/run")
 def run():
-	r = requests.get('https://oyorooms.freshdesk.com/reports/scheduled_exports/6374371511853668/download_file.json', auth=('29ecd4SXzdbNYsmDJp0Z', 'X'))
+	r = requests.get('https://oyorooms.freshdesk.com/reports/scheduled_exports/2658061516364627/download_file.json', auth=('29ecd4SXzdbNYsmDJp0Z', 'X'))
 	csvURL = ((r.json())["export"])["url"]
 	csvData = requests.get(csvURL)
 	with open("data.csv", "w") as csvFile:
