@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import csv
 import requests
 import plotly
@@ -33,6 +33,7 @@ class CallCentre(db.Model):
 	createdAt =  db.Column(db.String(), nullable=True)
 	resolvedAt = db.Column(db.String(), nullable=True)
 
+
 	def __init__(self, id, status, priority, source, agent, group, createdAt, resolvedAt):
 		self.id = id
 		self.status = status
@@ -50,7 +51,7 @@ def parseCsv():
 	df = pd.read_csv("data.csv")
 	columns_data = {}
 	for columns in column_list:
-		columns_data[columns] = df[columns].fillna('')
+		columns_data[columns] = df[columns].fillna("")
 	for i in columns_data[primary_key]:
 		obj = CallCentre.query.get(i)
 		if obj:
@@ -85,40 +86,60 @@ def test():
 def generateReports():
 	fmt = '%Y-%m-%d %H:%M:%S'
 	nowDate = date.today()
-	nowTime = datetime.now()
+	last60MinTime = (datetime.now() - timedelta(minutes=60)).strftime(fmt)
+	print datetime.now(), last60MinTime
+
 	PRIORITY = ["Urgent", "High", "Medium"]
 	STATUS = ["Open", "Resolved", "Closed", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
-
-	print (CallCentre.query.filter(CallCentre.status=="Resolved").count())
-
 	# Total tickets
-	totalTickets = CallCentre.query.filter(((nowTime - datetime.strptime(CallCentre.createdAt, fmt)).minutes <= 60), CallCentre.group == "SIG IB").count()
+	# totalTickets = CallCentre.query.filter(((nowTime - pd.to_datetime(CallCentre.createdAt, format=fmt)).minutes <= 60), CallCentre.group == "SIG IB").count()
+	totalTickets = CallCentre.query.filter(CallCentre.createdAt >= last60MinTime, CallCentre.group == 'SIG IB').count()
+	print totalTickets
+	
 	# Tickets resolved
-	resolvedTickets = CallCentre.query.filter(CallCentre.resolved != "", ((nowTime - datetime.strptime(CallCentre.resolvedAt, fmt)).minutes <= 60), CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
-	# Tickets resolved under 1 hour
-	resolvedWithinOneHour = CallCentre.query.filter
-	# Total tickets created by captain
-	resolvedTickets = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
-	# Status vs priority
-	i = 1
+	# resolvedTickets = CallCentre.query.filter(CallCentre.resolved != "", ((nowTime - datetime.strptime(CallCentre.resolvedAt, fmt)).minutes <= 60), CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
+	resolvedTickets = CallCentre.query.filter(last60MinTime <= CallCentre.resolvedAt, CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
+	
+	# # Tickets resolved under 1 hour
+	# resolvedWithinOneHour = CallCentre.query.filter
+	
+	# # Total tickets created by captain
+	# resolvedTickets = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
+	resolvedTicketsByCaptain = CallCentre.query.filter(last60MinTime <= CallCentre.createdAt, CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
+
+	print totalTickets, resolvedTickets, resolvedTicketsByCaptain
+
+	l = [0 for i in xrange(0, len(STATUS))]
+	tickets = [STATUS + ['Grand Total']]
+
+	# # Status vs priority
 	for pr in PRIORITY:
-		for st in STATUS:
-			tickets[i] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.priority == pr, CallCentre.status == st)
+		ticket = []
+		for index, st in enumerate(STATUS):
+			ticket.append(CallCentre.query.filter(CallCentre.createdAt >= last60MinTime, CallCentre.priority == pr, CallCentre.status == st).count())
+			l[index] += ticket[-1]
+			#tickets[i] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.priority == pr, CallCentre.status == st)
 			# tickets[pr + st] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.Priority == pr, CallCentre.Status == st)
-			i += 1
-	i = 1
-	tableRows = list()
-	for st in STATUS:
-		tableRows.append([st, tickets[i], tickets[i+1], tickets[i+2], tickets[i]+tickets[i+1]+tickets[i+2]])
-		i += 3
+		ticket.append(sum(ticket))
+		tickets.append(ticket)
+	print l
+	l.append(sum(l))
+	tickets.append(l)
+	for i in tickets:
+		print " ".join([str(r) for r in i])
 
+	PRIORITY.insert(0, 'Status')
+	PRIORITY.append('Pendency')
 
-	trace = go.Table(header=dict(values=['Status', PRIORITY]),
-					cells=dict(values=tableRows))
+	trace = go.Table(header=dict(values=PRIORITY, 
+								fill = dict(color='#C2D4FF'),
+								align = ['left']*5),
+	 				cells=dict(values=tickets, fill = dict(color='#F5F8FF'), align = ['left']*5))
 	data=[trace]
-	layout = go.Layout(title="Daily report - " + nowDate)
-	# layout = go.Layout(title="Daily report - " + nowDate, width=800, height=678)
+	layout = go.Layout(title="Daily report - " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
+	# # layout = go.Layout(title="Daily report - " + nowDate, width=800, height=678)
 	fig = go.Figure(data=data, layout=layout)
+	#py.iplot(fig, filename = 'basic_table')
 
 	py.image.save_as(fig, filename='report.png')
 	return "Success"
@@ -131,7 +152,7 @@ def sendMessage():
 				'client': 'OYO Call Center',
 				'eid': 'qqqqq',
 				'text': 'Daily reports',
-				'file': 'photo.jpg'
+				'file': 'report.png'
 			}
 	requests.post("postman-prod-env-1.ap-southeast-1.elasticbeanstalk.com/whatsapp/internal/send", data=payload)
 	return "Success"
