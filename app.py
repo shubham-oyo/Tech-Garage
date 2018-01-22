@@ -67,42 +67,69 @@ def parseCsv():
 	return "Success"
 
 
+# @app.route("/test")
+# def test():
+# 	ntime = "2018-01-14 17:54:13"
+# 	fmt = '%Y-%m-%d %H:%M:%S'
+# 	today = date.today()
+# 	now = datetime.now()
+# 	print(now)
+# 	print(datetime.strptime(ntime, fmt))
 
-@app.route("/test")
-def test():
-	ntime = "2018-01-14 17:54:13"
+# 	ts1 = now - datetime.strptime(ntime, fmt)
+# 	# ts1 = datetime.strptime(now, fmt) - datetime.strptime(ntime, fmt)
+# 	print(ts1)
+# 	return "das"
+
+def generateAgingReport():
 	fmt = '%Y-%m-%d %H:%M:%S'
-	today = date.today()
-	now = datetime.now()
-	print(now)
-	print(datetime.strptime(ntime, fmt))
+	nowDate = date.today()
+	last60MinTime = (datetime.now() - timedelta(minutes=60)).strftime(fmt)
+	last12HrsTime = (datetime.now() - timedelta(hours=12)).strftime(fmt)
+	last24HrsTime = (datetime.now() - timedelta(hours=24)).strftime(fmt)
+	last36HrsTime = (datetime.now() - timedelta(hours=36)).strftime(fmt)
+	last48HrsTime = (datetime.now() - timedelta(hours=48)).strftime(fmt)
+	last72HrsTime = (datetime.now() - timedelta(hours=72)).strftime(fmt)
 
-	ts1 = now - datetime.strptime(ntime, fmt)
-	# ts1 = datetime.strptime(now, fmt) - datetime.strptime(ntime, fmt)
-	print(ts1)
-	return "das"
+	aging = ["AGING" , ">72hrs", "48-72hrs", "36-48hrs", "24-36hrs", "12-24hrs", "<12hrs", "Total"]
+	STATUS = ["Open", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
+
+	pendency = ["Ticket Pendency"]
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last72HrsTime).count())
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last48HrsTime, CallCentre.createdAt <= last72HrsTime).count())
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last36HrsTime, CallCentre.createdAt <= last48HrsTime).count())
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last24HrsTime, CallCentre.createdAt <= last36HrsTime).count())
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last12HrsTime, CallCentre.createdAt <= last24HrsTime).count())
+	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt <= last12HrsTime).count())
+	trace1 = go.Table(header=dict(values=aging),
+	 				cells=dict(values=pendency))
+	pendency.append(sum(pendency[1:]))
+	data1=[trace1]
+	print aging
+	print pendency
+	layout1 = go.Layout(title="Daily report - " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
+	fig1 = go.Figure(data=data1, layout=layout1)
+	py.image.save_as(fig1, filename='report1.png')
 
 
-@app.route("/report")
-def generateReports():
+# @app.route("/report")
+def generateStatusReport():
 	fmt = '%Y-%m-%d %H:%M:%S'
 	nowDate = date.today()
 	last60MinTime = (datetime.now() - timedelta(minutes=60)).strftime(fmt)
 	print datetime.now(), last60MinTime
 
 	PRIORITY = ["Urgent", "High", "Medium"]
-	STATUS = ["Open", "Resolved", "Closed", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
+	STATUS = ["Open", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
+	RSTATUS = ["Resolved", "Closed"]
 	# Total tickets
-	# totalTickets = CallCentre.query.filter(((nowTime - pd.to_datetime(CallCentre.createdAt, format=fmt)).minutes <= 60), CallCentre.group == "SIG IB").count()
 	totalTickets = CallCentre.query.filter(CallCentre.createdAt >= last60MinTime, CallCentre.group == 'SIG IB').count()
 	print totalTickets
 	
 	# Tickets resolved
-	# resolvedTickets = CallCentre.query.filter(CallCentre.resolved != "", ((nowTime - datetime.strptime(CallCentre.resolvedAt, fmt)).minutes <= 60), CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
 	resolvedTickets = CallCentre.query.filter(last60MinTime <= CallCentre.resolvedAt, CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
 	
 	# # Total tickets created by captain
-	# resolvedTickets = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
 	resolvedTicketsByCaptain = CallCentre.query.filter(last60MinTime <= CallCentre.createdAt, CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
 
 	print totalTickets, resolvedTickets, resolvedTicketsByCaptain
@@ -116,8 +143,6 @@ def generateReports():
 		for index, st in enumerate(STATUS):
 			ticket.append(CallCentre.query.filter(CallCentre.createdAt >= last60MinTime, CallCentre.priority == pr, CallCentre.status == st).count())
 			l[index] += ticket[-1]
-			#tickets[i] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.priority == pr, CallCentre.status == st)
-			# tickets[pr + st] = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.Priority == pr, CallCentre.Status == st)
 		ticket.append(sum(ticket))
 		tickets.append(ticket)
 	print l
@@ -137,10 +162,11 @@ def generateReports():
 	layout = go.Layout(title="Daily report - " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
 	fig = go.Figure(data=data, layout=layout)
 	py.image.save_as(fig, filename='report.png')
+
 	return "Success"
 
 
-@app.route("/sendMessage", methods=["POST"])
+#@app.route("/sendMessage", methods=["POST"])
 def sendMessage():
 	payload = MultipartEncoder(fields = { 'to': '8764066357',
 											'type': 'Image',
@@ -169,4 +195,7 @@ def run():
 		csvFile.write(csvData.content)
 	test()
 	parseCsv()
+	generateStatusReport()
+	generateAgingReport()
+	sendMessage()
 	return "Success"
