@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from datetime import date, datetime, timedelta
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 import csv
 import requests
 import plotly
@@ -100,9 +101,6 @@ def generateReports():
 	# resolvedTickets = CallCentre.query.filter(CallCentre.resolved != "", ((nowTime - datetime.strptime(CallCentre.resolvedAt, fmt)).minutes <= 60), CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
 	resolvedTickets = CallCentre.query.filter(last60MinTime <= CallCentre.resolvedAt, CallCentre.status == "Resolved", CallCentre.group == "SIG IB").count()
 	
-	# # Tickets resolved under 1 hour
-	# resolvedWithinOneHour = CallCentre.query.filter
-	
 	# # Total tickets created by captain
 	# resolvedTickets = CallCentre.query.filter(((datetime.strptime(CallCentre.createdAt, fmt) - now).minutes <= 60), CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
 	resolvedTicketsByCaptain = CallCentre.query.filter(last60MinTime <= CallCentre.createdAt, CallCentre.agent != "No Agent", CallCentre.group == "SIG IB").count()
@@ -137,24 +135,23 @@ def generateReports():
 	 				cells=dict(values=tickets, fill = dict(color='#F5F8FF'), align = ['left']*5))
 	data=[trace]
 	layout = go.Layout(title="Daily report - " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
-	# # layout = go.Layout(title="Daily report - " + nowDate, width=800, height=678)
 	fig = go.Figure(data=data, layout=layout)
-	#py.iplot(fig, filename = 'basic_table')
-
 	py.image.save_as(fig, filename='report.png')
 	return "Success"
 
 
-@app.route("/sendMessage")
+@app.route("/sendMessage", methods=["POST"])
 def sendMessage():
-	payload = { 'to': 'alwaysLast',
-				'type': 'image',
-				'client': 'OYO Call Center',
-				'eid': 'qqqqq',
-				'text': 'Daily reports',
-				'file': 'report.png'
-			}
-	requests.post("postman-prod-env-1.ap-southeast-1.elasticbeanstalk.com/whatsapp/internal/send", data=payload)
+	payload = MultipartEncoder(fields = { 'to': '8764066357',
+											'type': 'Image',
+											'client': 'OYO Call Center',
+											'eId': 'qqqqq',
+											'file': ('report.png', open('./report.png', 'rb'), 'image/png'),
+											'caption': 'Hourly call centre report',
+										})
+	headers = { 'Content-Type': payload.content_type}
+	# requests.post("https://postman-prod-env-1.ap-southeast-1.elasticbeanstalk.com/whatsapp/internal/send", data=payload)
+	print requests.post("http://54.254.232.208:8080/whatsapp/internal/send", data=payload, headers=headers).text
 	return "Success"
 
 def test():
