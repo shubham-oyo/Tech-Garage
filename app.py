@@ -104,12 +104,16 @@ def generateAgingReport():
 	for i in pendency:
 		c += sum(i)
 	pendency.append([c])
-	trace1 = go.Table(header=dict(values=aging),
-	 				cells=dict(values=pendency))
+	aging.insert(0, 'Aging')
+	pendency.insert(0, ['Ticket Pendency'])
+	trace1 = go.Table(header=dict(values=aging, 
+								fill = dict(color='#C2D4FF'),
+								align = ['left']*5),
+	 				cells=dict(values=pendency, fill = dict(color='#F5F8FF'), align = ['left']*5))
 	data1=[trace1]
 	print aging
 	print pendency
-	layout1 = go.Layout(title="Daily report - Aging " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
+	layout1 = go.Layout(title="Daily report - Aging " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=1100, height=550)
 	fig1 = go.Figure(data=data1, layout=layout1)
 	py.image.save_as(fig1, filename='report1.png')
 
@@ -169,12 +173,12 @@ def generateStatusReport():
 
 
 #@app.route("/sendMessage", methods=["POST"])
-def sendMessage():
+def sendMessage(filename, path):
 	payload = MultipartEncoder(fields = { 'to': '8764066357',
 											'type': 'Image',
 											'client': 'OYO Call Center',
 											'eId': 'qqqqq',
-											'file': ('report.png', open('./report.png', 'rb'), 'image/png'),
+											'file': (filename, open(path, 'rb'), 'image/png'),
 											'caption': 'Hourly call centre report',
 										})
 	headers = { 'Content-Type': payload.content_type}
@@ -182,11 +186,11 @@ def sendMessage():
 	print requests.post("http://54.254.232.208:8080/whatsapp/internal/send", data=payload, headers=headers).text
 	return "Success"
 
-def test():
-	db.create_all()
-	admin = CallCentre(1, "Resolved", "Medium", "Portal", "abc", "SIG IB", "2018-01-19 17:54:13", "2018-01-19 18:00:36")
-	db.session.add(admin)
-	db.session.commit()
+# def test():
+# 	db.create_all()
+# 	admin = CallCentre(1, "Resolved", "Medium", "Portal", "abc", "SIG IB", "2018-01-19 17:54:13", "2018-01-19 18:00:36")
+# 	db.session.add(admin)
+# 	db.session.commit()
 
 @app.route("/run")
 def run():
@@ -195,9 +199,10 @@ def run():
 	csvData = requests.get(csvURL)
 	with open("data.csv", "w") as csvFile:
 		csvFile.write(csvData.content)
-	test()
+	# test()
 	parseCsv()
 	generateStatusReport()
 	generateAgingReport()
-	sendMessage()
+	sendMessage('report.png', './report.png')
+	sendMessage('report1.png', './report1.png')
 	return "Success"
