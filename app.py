@@ -91,23 +91,25 @@ def generateAgingReport():
 	last48HrsTime = (datetime.now() - timedelta(hours=48)).strftime(fmt)
 	last72HrsTime = (datetime.now() - timedelta(hours=72)).strftime(fmt)
 
-	aging = ["AGING" , ">72hrs", "48-72hrs", "36-48hrs", "24-36hrs", "12-24hrs", "<12hrs", "Total"]
+	aging = [">72hrs", "48-72hrs", "36-48hrs", "24-36hrs", "12-24hrs", "<12hrs", "Total"]
 	STATUS = ["Open", "Pending", "Waiting on finance", "Waiting on operations", "Waiting on Recon", "Call Back To be Arranged", "Call Back Scheduled", "Customer Responded", "Followed up by guest", "Guest Not Contactable", "Unassigned"]
-
-	pendency = ["Ticket Pendency"]
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last72HrsTime).count())
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last48HrsTime, CallCentre.createdAt <= last72HrsTime).count())
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last36HrsTime, CallCentre.createdAt <= last48HrsTime).count())
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last24HrsTime, CallCentre.createdAt <= last36HrsTime).count())
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last12HrsTime, CallCentre.createdAt <= last24HrsTime).count())
-	pendency.append(CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt <= last12HrsTime).count())
+	pendency = []
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last72HrsTime).count()])
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last48HrsTime, CallCentre.createdAt <= last72HrsTime).count()])
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last36HrsTime, CallCentre.createdAt <= last48HrsTime).count()])
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last24HrsTime, CallCentre.createdAt <= last36HrsTime).count()])
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt > last12HrsTime, CallCentre.createdAt <= last24HrsTime).count()])
+	pendency.append([CallCentre.query.filter(CallCentre.group == "SIG IB", CallCentre.status.in_(STATUS), CallCentre.createdAt <= last12HrsTime).count()])
+	c = 0
+	for i in pendency:
+		c += sum(i)
+	pendency.append([c])
 	trace1 = go.Table(header=dict(values=aging),
 	 				cells=dict(values=pendency))
-	pendency.append(sum(pendency[1:]))
 	data1=[trace1]
 	print aging
 	print pendency
-	layout1 = go.Layout(title="Daily report - " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
+	layout1 = go.Layout(title="Daily report - Aging " + datetime.now().strftime("%Y/%m/%d %H:%M:%S"), width=900, height=550)
 	fig1 = go.Figure(data=data1, layout=layout1)
 	py.image.save_as(fig1, filename='report1.png')
 
